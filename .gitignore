@@ -1,0 +1,7 @@
+AGENT_RULES.md
+docs/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
