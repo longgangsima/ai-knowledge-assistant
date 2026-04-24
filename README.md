@@ -39,8 +39,39 @@ app/
   models/           # Pydantic schemas and domain types
   observability/    # Logging and metrics helpers
   services/         # RAG, ingestion, and chat orchestration
-  workers/          # Background job execution seam
+workers/          # Background job execution seam
 tests/              # Test suite
+```
+
+## How To Run
+
+This project currently targets Python `3.11+`.
+
+Prepare a local virtual environment and install dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+Start the FastAPI app with Uvicorn:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+After startup, you can access:
+
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/docs`
+
+## How To Test
+
+Run the test suite from the same activated virtual environment:
+
+```bash
+pytest -q
 ```
 
 ## Next Steps
