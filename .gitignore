@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
+ai_knowledge_assistant.egg-info/

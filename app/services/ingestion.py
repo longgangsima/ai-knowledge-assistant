@@ -1,7 +1,8 @@
 from uuid import uuid4
 
-from app.db.repositories import get_job_repository
-from app.models.api import DocumentCreateRequest, DocumentCreateResponse, JobResponse
+from app.db import get_document_repository, get_job_repository
+from app.models.api import (DocumentCreateRequest, DocumentCreateResponse,
+                            JobResponse)
 
 
 class IngestionService:
@@ -16,9 +17,13 @@ class IngestionService:
             detail=f"Queued ingestion for document '{payload.title}'.",
         )
         await get_job_repository().save(job)
-
-        return DocumentCreateResponse(
+        
+        document = DocumentCreateResponse(
             document_id=document_id,
             job_id=job_id,
             status="queued",
         )
+        
+        await get_document_repository().save(document)
+
+        return document

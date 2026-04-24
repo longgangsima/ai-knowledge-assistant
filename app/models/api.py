@@ -25,17 +25,3 @@ class JobResponse(BaseModel):
     status: Literal["queued", "processing", "completed", "failed"]
     detail: str
 
-
-class AskRequest(BaseModel):
-    question: str = Field(min_length=1)
-    top_k: int = Field(default=3, ge=1, le=10)
-
-
-class Citation(BaseModel):
-    document_id: str
-    snippet: str
-
-
-class AskResponse(BaseModel):
-    answer: str
-    citations: list[Citation]
