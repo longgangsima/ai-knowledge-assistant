@@ -25,3 +25,15 @@ class JobResponse(BaseModel):
     status: Literal["queued", "processing", "completed", "failed"]
     detail: str
 
+
+class ChunkResponse(BaseModel):
+    chunk_id: str
+    document_id: str
+    chunk_index: int
+    text: str
+    embedding: list[float] | None = None
+    metadata: dict[str, str | int | float] | None = None
+
+
+class VectorResponse(BaseModel):
+    val: list[float]
