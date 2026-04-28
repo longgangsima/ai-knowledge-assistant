@@ -52,3 +52,5 @@ class IngestionService:
         await get_document_repository().save(document)
 
         return document
+
+    # async def ge
