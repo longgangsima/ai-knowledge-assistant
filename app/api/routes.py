@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from app.db import get_chunk_repository, get_job_repository
 from app.models.api import (AskRequest, AskResponse, DocumentCreateRequest,
@@ -39,3 +40,11 @@ async def get_job(job_id: str) -> JobResponse:
 async def get_ask(payload: AskRequest) -> AskResponse:
     """Answer a question using retrieved chunks and source citations."""
     return await ask_service.ask(payload)
+
+@router.post("/ask/stream")
+async def get_ask_stream(payload: AskRequest) -> StreamingResponse:
+    """Stream an answer as Server-Sent Events."""
+    return StreamingResponse(
+        ask_service.stream_ask(payload),
+        media_type="text/event-stream",
+    )
