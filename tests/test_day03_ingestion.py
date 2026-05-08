@@ -56,13 +56,19 @@ def test_chunk_repository_lists_chunks_by_document_in_order() -> None:
 
 
 def test_ingestion_stores_chunks_with_stubbed_embeddings() -> None:
-    response = asyncio.run(
-        IngestionService().submit_document(
-            DocumentCreateRequest(
-                title="Day 3 Notes",
-                content="First paragraph.\n\nSecond paragraph.",
-                source="local-test",
-            )
+    service = IngestionService()
+    payload = DocumentCreateRequest(
+        title="Day 3 Notes",
+        content="First paragraph.\n\nSecond paragraph.",
+        source="local-test",
+    )
+    response = asyncio.run(service.submit_document(payload))
+
+    asyncio.run(
+        service.process_document(
+            response.document_id,
+            response.job_id,
+            payload,
         )
     )
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from app.db import get_chunk_repository, get_job_repository
@@ -24,9 +24,19 @@ async def health() -> HealthResponse:
 
 
 @router.post("/documents", response_model=DocumentCreateResponse, status_code=status.HTTP_202_ACCEPTED)
-async def create_document(payload: DocumentCreateRequest) -> DocumentCreateResponse:
-    """Accept a document submission and enqueue the ingestion workflow."""
-    return await ingestion_service.submit_document(payload)
+async def create_document(
+    payload: DocumentCreateRequest,
+    background_tasks: BackgroundTasks,
+) -> DocumentCreateResponse:
+    """Accept a document, return a queued job, and process ingestion in the background."""
+    document = await ingestion_service.submit_document(payload)
+    background_tasks.add_task(
+        ingestion_service.process_document,
+        document.document_id,
+        document.job_id,
+        payload,
+    )
+    return document
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
 async def get_job(job_id: str) -> JobResponse:

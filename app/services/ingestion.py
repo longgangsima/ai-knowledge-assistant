@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import uuid4
 
 from app.db import (get_chunk_repository, get_document_repository,
@@ -23,6 +24,52 @@ class IngestionService:
 
         await get_job_repository().save(job)
 
+        document = DocumentCreateResponse(
+            document_id=document_id,
+            job_id=job_id,
+            status="queued",
+        )
+
+        await get_document_repository().save(document)
+
+        return document
+
+    async def process_document(
+        self,
+        document_id: str,
+        job_id: str,
+        payload: DocumentCreateRequest,
+    ) -> None:
+        await self._update_job(
+            job_id=job_id,
+            document_id=document_id,
+            status="processing",
+            detail=f"Processing ingestion for document '{payload.title}'.",
+        )
+
+        try:
+            await self._store_chunks(document_id, payload)
+        except Exception as exc:
+            await self._update_job(
+                job_id=job_id,
+                document_id=document_id,
+                status="failed",
+                detail=f"Failed ingestion for document '{payload.title}': {exc}",
+            )
+            return
+
+        await self._update_job(
+            job_id=job_id,
+            document_id=document_id,
+            status="completed",
+            detail=f"Completed ingestion for document '{payload.title}'.",
+        )
+
+    async def _store_chunks(
+        self,
+        document_id: str,
+        payload: DocumentCreateRequest,
+    ) -> None:
         chunks = ChunkService().split_text_into_chunks(payload.content)
         embedding_provider = MockEmbeddingProvider()
         embedding_service = EmbeddingService(embedding_provider)
@@ -43,14 +90,18 @@ class IngestionService:
 
             await get_chunk_repository().save(chunk)
 
-        document = DocumentCreateResponse(
-            document_id=document_id,
+    async def _update_job(
+        self,
+        job_id: str,
+        document_id: str,
+        status: Literal["queued", "processing", "completed", "failed"],
+        detail: str,
+    ) -> None:
+        job = JobResponse(
             job_id=job_id,
-            status="queued",
+            document_id=document_id,
+            status=status,
+            detail=detail,
         )
 
-        await get_document_repository().save(document)
-
-        return document
-
-    # async def ge
+        await get_job_repository().save(job)
