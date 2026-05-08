@@ -51,7 +51,8 @@ def test_get_job_returns_previously_created_job() -> None:
     assert job_response.status_code == 200
     assert job_payload["job_id"] == job_id
     assert job_payload["document_id"] == document_id
-    assert job_payload["status"] == "queued"
+    assert job_payload["status"] == "completed"
+    assert job_payload["detail"].startswith("Completed ingestion")
 
 
 def test_get_job_returns_404_for_unknown_job() -> None:

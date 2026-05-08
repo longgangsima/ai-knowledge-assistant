@@ -37,3 +37,20 @@ class ChunkResponse(BaseModel):
 
 class VectorResponse(BaseModel):
     val: list[float]
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=1)
+
+
+class Citation(BaseModel):
+    document_id: str
+    chunk_id: str
+    chunk_index: int
+    text: str
+    source: str | None = None
+
+
+class AskResponse(BaseModel):
+    answer: str
+    citations: list[Citation]
