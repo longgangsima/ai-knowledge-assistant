@@ -1,8 +1,12 @@
 import json
+import logging
 from collections.abc import AsyncIterator
+from time import perf_counter
 from typing import Any
 
 from app.models.api import AskRequest, AskResponse, Citation
+
+logger = logging.getLogger(__name__)
 
 
 class AskService:
@@ -13,17 +17,70 @@ class AskService:
 
     async def ask(self, payload: AskRequest) -> AskResponse:
         """Run the full ask flow: retrieve context, generate answer, and cite sources."""
+        started_at = perf_counter()
+        logger.info(
+            "ask started",
+            extra={
+                "event": "ask_started",
+                "status": "started",
+            },
+        )
+
         chunks = await self.retrieval_service.retrieve(payload.question)
+        retrieval_duration_ms = round((perf_counter() - started_at) * 1000, 2)
+        logger.info(
+            "ask retrieval completed",
+            extra={
+                "event": "ask_retrieval_completed",
+                "status": "completed",
+                "retrieved_chunk_count": len(chunks),
+                "duration_ms": retrieval_duration_ms,
+            },
+        )
+
         answer = await self.chat_service.generate_answer(payload.question, chunks)
         citations = self._build_citations(chunks)
+        duration_ms = round((perf_counter() - started_at) * 1000, 2)
+        logger.info(
+            "ask completed",
+            extra={
+                "event": "ask_completed",
+                "question": payload.question,
+                "retrieved_chunk_count": len(chunks),
+                "citation_count": len(citations),
+                "status": "completed",
+                "duration_ms": duration_ms,
+            },
+        )
 
         return AskResponse(answer=answer, citations=citations)
 
     async def stream_ask(self, payload: AskRequest) -> AsyncIterator[str]:
         """Stream answer chunks, citations, and a completion event as SSE messages."""
+        started_at = perf_counter()
+        answer_chunk_count = 0
+
+        logger.info(
+            "ask stream started",
+            extra={
+                "event": "ask_stream_started",
+                "status": "started",
+            },
+        )
+
         chunks = await self.retrieval_service.retrieve(payload.question)
+        logger.info(
+            "ask stream retrieval completed",
+            extra={
+                "event": "ask_stream_retrieval_completed",
+                "status": "completed",
+                "retrieved_chunk_count": len(chunks),
+                "duration_ms": round((perf_counter() - started_at) * 1000, 2),
+            },
+        )
 
         async for text in self.chat_service.stream_answer(payload.question, chunks):
+            answer_chunk_count += 1
             yield self._format_sse(
                 "answer_chunk",
                 {
@@ -32,7 +89,8 @@ class AskService:
                 },
             )
 
-        for citation in self._build_citations(chunks):
+        citations = self._build_citations(chunks)
+        for citation in citations:
             yield self._format_sse(
                 "citation",
                 {
@@ -45,6 +103,17 @@ class AskService:
             "done",
             {
                 "type": "done",
+            },
+        )
+        logger.info(
+            "ask stream completed",
+            extra={
+                "event": "ask_stream_completed",
+                "status": "completed",
+                "retrieved_chunk_count": len(chunks),
+                "answer_chunk_count": answer_chunk_count,
+                "citation_count": len(citations),
+                "duration_ms": round((perf_counter() - started_at) * 1000, 2),
             },
         )
 

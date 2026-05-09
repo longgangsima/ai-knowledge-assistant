@@ -1,6 +1,9 @@
+import logging
 import re
 
 from app.models.api import ChunkResponse
+
+logger = logging.getLogger(__name__)
 
 
 class RetrievalService:
@@ -27,7 +30,19 @@ class RetrievalService:
             key=lambda item: (-item[0], item[1].document_id, item[1].chunk_index),
         )
 
-        return [chunk for _, chunk in ranked_chunks[:top_k]]
+        returned_chunks = [chunk for _, chunk in ranked_chunks[:top_k]]
+        logger.info(
+            "retrieval completed",
+            extra={
+                "event": "retrieval_completed",
+                "candidate_chunk_count": len(chunks),
+                "matched_chunk_count": len(relevant_chunks),
+                "returned_chunk_count": len(returned_chunks),
+                "top_k": top_k,
+            },
+        )
+
+        return returned_chunks
 
     def _tokenize(self, text: str) -> set[str]:
         """Normalize text into unique lowercase terms for simple matching."""

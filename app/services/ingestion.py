@@ -1,17 +1,26 @@
+import logging
+from time import perf_counter
 from typing import Literal
 from uuid import uuid4
 
-from app.db import (get_chunk_repository, get_document_repository,
-                    get_job_repository)
-from app.models.api import (ChunkResponse, DocumentCreateRequest,
-                            DocumentCreateResponse, JobResponse)
+from app.db import get_chunk_repository, get_document_repository, get_job_repository
+from app.models.api import (
+    ChunkResponse,
+    DocumentCreateRequest,
+    DocumentCreateResponse,
+    JobResponse,
+)
 from app.providers.embedding import MockEmbeddingProvider
 from app.services.chunk import ChunkService
 from app.services.embedding import EmbeddingService
 
+logger = logging.getLogger(__name__)
+
 
 class IngestionService:
-    async def submit_document(self, payload: DocumentCreateRequest) -> DocumentCreateResponse:
+    async def submit_document(
+        self, payload: DocumentCreateRequest
+    ) -> DocumentCreateResponse:
         document_id = str(uuid4())
         job_id = str(uuid4())
 
@@ -32,6 +41,16 @@ class IngestionService:
 
         await get_document_repository().save(document)
 
+        logger.info(
+            "ingestion job queued",
+            extra={
+                "event": "ingestion_queued",
+                "job_id": job_id,
+                "document_id": document_id,
+                "status": "queued",
+            },
+        )
+
         return document
 
     async def process_document(
@@ -40,11 +59,22 @@ class IngestionService:
         job_id: str,
         payload: DocumentCreateRequest,
     ) -> None:
+        started_at = perf_counter()
         await self._update_job(
             job_id=job_id,
             document_id=document_id,
             status="processing",
             detail=f"Processing ingestion for document '{payload.title}'.",
+        )
+
+        logger.info(
+            "ingestion job processing",
+            extra={
+                "event": "ingestion_processing",
+                "job_id": job_id,
+                "document_id": document_id,
+                "status": "processing",
+            },
         )
 
         try:
@@ -56,6 +86,18 @@ class IngestionService:
                 status="failed",
                 detail=f"Failed ingestion for document '{payload.title}': {exc}",
             )
+            duration_ms = round((perf_counter() - started_at) * 1000, 2)
+
+            logger.info(
+                "ingestion job failed",
+                extra={
+                    "event": "ingestion_failed",
+                    "job_id": job_id,
+                    "document_id": document_id,
+                    "status": "failed",
+                    "duration_ms": duration_ms,
+                },
+            )
             return
 
         await self._update_job(
@@ -63,6 +105,18 @@ class IngestionService:
             document_id=document_id,
             status="completed",
             detail=f"Completed ingestion for document '{payload.title}'.",
+        )
+        duration_ms = round((perf_counter() - started_at) * 1000, 2)
+
+        logger.info(
+            "ingestion job completed",
+            extra={
+                "event": "ingestion_completed",
+                "job_id": job_id,
+                "document_id": document_id,
+                "status": "completed",
+                "duration_ms": duration_ms,
+            },
         )
 
     async def _store_chunks(
